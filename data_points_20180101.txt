@@ -2993,4 +2993,4 @@ Longitude: 51°11′12″W   -51.18678828
 Distance: 3.397 km  Bearing: 61.067°
 Latitude: 30°00′24″S   -30.00657367
 Longitude: 51°15′27″W   -51.25739042
-Distance: 4.9387 km  Bearing: 309.206°
+aaa
