@@ -1,0 +1,44 @@
+version: '3'
+services:
+  db:
+    container_name: postgres
+    image: postgres:${POSTGRES_VERSION}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./sql_scripts:/docker-entrypoint-initdb.d
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=4all
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+  app:
+    build:
+      context: .
+      dockerfile: app.dockerfile
+    container_name: app
+    volumes:
+      - .:/app
+    ports:
+      - 8888:8888
+    environment:
+      - PYTHONPATH=/app
+    command: >
+      bash -c "python /app/wait_for_postgres.py &&
+      jupyter notebook"
+
+
+volumes:
+  db_data:
+
+
+#db:
+#    container_name: db_service
+#    build:
+#      context: .
+#      dockerfile: ./app.dockerfile
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - /var/lib/postgresql/data/

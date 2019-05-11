@@ -8,6 +8,13 @@ verify_ssl = true
 [packages]
 pyarrow = "*"
 pandas = "*"
+numpy = "*"
+googlemaps = "*"
+dataset = "*"
+psycopg2-binary = "*"
+python-decouple = "*"
+unipath = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.6"
