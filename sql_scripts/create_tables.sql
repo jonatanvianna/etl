@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS coordinate_points (
-    id INTEGER NOT NULL,
+    id SERIAL PRIMARY KEY ,
     latitude_coordinate VARCHAR(20) NOT NULL,
     latitude_degree FLOAT NOT NULL,
     longitude_coordinate varchar(20) NOT NULL,

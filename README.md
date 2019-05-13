@@ -40,6 +40,8 @@ jupyter notebook to execute project phases
 ## Loading
 
 
+{'latitude_coordinate': '30°02′59″S', 'latitude_degree': '-30.04982864', 'longitude_coordinate': '51°12′05″W', 'longitude_degree': '-51.20150245', 'distance_km': '2.2959', 'bearing_degrees': '137.352'}
+{'latitude_coordinate': '30°02′59″S', 'latitude_degree': '-30.04982864', 'longitude_coordinate': '51°12′05″W', 'longitude_degree': '-51.20150245', 'distance_km': '2.2959', 'bearing_degrees': '137.352'}
 
 
 use coordenates to get:

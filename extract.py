@@ -71,8 +71,3 @@ def convert_coordinate_list_to_csv(master_list: List[List[str]]) -> None:
 
         # assert len(line_list) == 3, f"Length of line_list is 3, but {len(line_list)}"
         # assert len(master_list) == 998, f"Length of master_list is 3, but {len(master_list)}"
-
-
-if __name__ == '__main__':
-    ml = convert_to_list(['data_points_20180101.txt', 'data_points_20180102.txt', 'data_points_20180103.txt'], 3)
-    convert_coordinate_list_to_csv(ml)
