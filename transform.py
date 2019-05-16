@@ -61,7 +61,7 @@ def get_address(address_components):
             address.update({'city': component.get('long_name')})
 
         if 'sublocality_level_1' in component_types:
-            address.update({'neighbor': component.get('long_name')})
+            address.update({'neighborhood': component.get('long_name')})
 
         if 'street_number' in component_types:
             address.update({'street_number': component.get('long_name')})
@@ -69,37 +69,69 @@ def get_address(address_components):
         if 'route' in component_types:
             address.update({'street_name': component.get('long_name')})
 
+        if 'postal_code' in component_types:
+            address.update({'postal_code': component.get('long_name')})
 
     if address:
         return address
 
 
+def is_address_valid(address):
+    address_components = ['country', 'state', 'city', 'neighborhood', 'street_number', 'street_name', 'postal_code', 'latitute', 'longitute']
+    address_keys = address.keys()
 
 
+    for key in address_keys:
+
+        if key not in address_components:
+            return False
+    return True
+    # if not address.get('country'):
+    #     return False
+    # if not address.get('state'):
+    #     return False
+    # if not address.get('city'):
+    #     return False
+    # if not address.get('neighborhood'):
+    #     return False
+    # if not address.get('street_number'):
+    #     return False
+    # if not address.get('street_name'):
+    #     return False
+    # if not address.get('postal_code'):
+    #     return False
+    # address_components = ['country', 'state', 'city', 'neighborhood', 'street_number', 'street_name', 'postal_code']
+    # return True
 
 
-
-
-
-
-count = 0
-for ko, ki in csv.iterrows():
-    # print(ko, ki.values[0], ki.values[1])
+count = -1
+for number, coordinate in csv.iterrows():
+    # print(number, coordinate.values[0], coordinate.values[1])
     # for n, i in enumerate(coord):
-    result = maps.reverse_geocode((ki.values[0], ki.values[1]), result_type='street_address', location_type='ROOFTOP')
+    result = maps.reverse_geocode((coordinate.values[0], coordinate.values[1]), result_type='street_address', location_type='ROOFTOP')
     if result:
+
         for o in result:
             address_components = o.get("address_components", "")
-
             if address_components:
-                street_number = get_address(address_components)
-                print(json.dumps(street_number, indent=4, ensure_ascii=False))
+                complete_address = get_address(address_components)
+                if complete_address:
+                    complete_address.update({'latitute': coordinate.values[0], 'longitute': coordinate.values[1]})
+                    if is_address_valid(complete_address):
+                        count += 1
+                        print("Integrate data:")
+                        # print(json.dumps(complete_address, indent=4, ensure_ascii=False))
+                    else:
+                        print("NOT Integrate data:")
+                        print(json.dumps(complete_address, indent=4, ensure_ascii=False))
+    print(f"CSV [{number}] - Valid [{count}] HAS" if result else f"CSV [{number}] - Valid [{count}] EMPTY {result}")
+
 
 
 
             # if o.get('formatted_address'):
             #     count += 1
-            #     print(f"{ko}-{count} - {o.get('formatted_address')}")
+            #     print(f"{number}-{count} - {o.get('formatted_address')}")
 
             # if o.get("address_components"):
             # for i in o.get("address_components"):

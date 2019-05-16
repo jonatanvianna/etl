@@ -1,4 +1,22 @@
 
+### Data fluxogram 
+
+converte coordenadas de blocos de 3 linhas  para uma lista de listas
+converte cada lista para um dicionario filrando por regex
+se te algum dado faltando ifgnora a linha
+
+- Reads raw data from txt writes csv deduplicated complete coordinates
+- Reads coordinates from csv
+- Make a request to get address
+- If matches saves in database coordinates relating `coordinates` and `address` tables
+
+
+-----------
+# ***FUTURE***
+### get bearing and distance to convert to destination  
+
+-----------
+
 
 * ***TODO*** improve regex to match integer and decimal number
 
@@ -52,4 +70,7 @@ Writes to db
 
 
 The databases are 
+
+
+
 
