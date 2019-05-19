@@ -3,7 +3,8 @@
 
 converte coordenadas de blocos de 3 linhas  para uma lista de listas
 converte cada lista para um dicionario filrando por regex
-se te algum dado faltando ifgnora a linha
+se te algum dado faltando ignora a linha
+
 
 - Reads raw data from txt writes csv deduplicated complete coordinates
 - Reads coordinates from csv
@@ -54,6 +55,7 @@ Codebase in Python 3.6
 jupyter notebook to execute project phases
 
 ## Extracting
+
 ## Transforming
 ## Loading
 

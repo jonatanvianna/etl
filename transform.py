@@ -1,167 +1,260 @@
-import googlemaps
-import json
-import pdb;
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
+
+import logging
+import os
+from pathlib import Path
+
+from googlemaps import Client as GoogleMapsClient
+from googlemaps.exceptions import ApiError
+
 import pandas as pd
 
-coord = [
-(-30.00221199,-51.22552735),
-(-30.02764286,-51.25084839),
-(-30.02655075,-51.20207391),
-(-30.06307018,-51.21643935),
-(-30.03528083,-51.24316122),
-(-30.0731661,-51.23823893 ),
-(-30.04335422,-51.25911173),
-(-30.0539081,-51.23780894 ),
-(-30.03085498,-51.1976115 ),
-(-29.99303501,-51.21864678)]
+
+LOG_PATH = "/app/logs/"
+LOG_FILENAME = "transform.log"
+
+logging.basicConfig(
+    filename=LOG_PATH + LOG_FILENAME,
+    format="[%(asctime)s] [%(levelname)s] [%(message)s]",
+)
+logger = logging.getLogger()
+logger.setLevel("INFO")
 
 
+class Converter:
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self.maps = GoogleMapsClient(key=api_key)
+        logger.debug("Instantiating Converter")
+
+    @staticmethod
+    def is_address_valid(address):
+        """
+        Validates if an Address has complete information, if all address fields
+        are filled with data.
+
+        :param address: json containing all address components
+        :return: bool
+        """
+
+        address_components = [
+            "country",
+            "state",
+            "city",
+            "neighborhood",
+            "street_number",
+            "street_name",
+            "postal_code",
+            "latitute",
+            "longitute",
+        ]
+        address_keys = address.keys()
+        for key in address_keys:
+            if key not in address_components:
+                return False
+        return True
+
+    @staticmethod
+    def get_address_from_address_components(address_components):
+        """
+        Extracts data from address components returned from a query in googlemaps reverse_geocode api
+
+        :param address_components: a dict with address components
+        :return: a dict with transformed address
+        """
+        address = {}
+
+        for component in address_components:
+            component_types = component.get("types", "")
+
+            if "country" in component_types:
+                address.update({"country": component.get("long_name")})
+
+            if "administrative_area_level_1" in component_types:
+                address.update({"state": component.get("short_name")})
+
+            if "administrative_area_level_2" in component_types:
+                address.update({"city": component.get("long_name")})
+
+            if "sublocality_level_1" in component_types:
+                address.update({"neighborhood": component.get("long_name")})
+
+            if "street_number" in component_types:
+                address.update({"street_number": component.get("long_name")})
+
+            if "route" in component_types:
+                address.update({"street_name": component.get("long_name")})
+
+            if "postal_code" in component_types:
+                address.update({"postal_code": component.get("long_name")})
+
+        if address:
+            return address
+
+    @staticmethod
+    def get_coordinates_from_csv_file(file_path, csv_columns=None):
+        """
+        Read geographical coordinates from CSV file.
+        If no specific columns are passed, id reads all columns from csv and
+        the CSV file must have the following format:
+        +------------+-----------+
+        | latitude,  | longitude |  <- headers
+        | -30.896756,| 51.987642 |  <- coordinates
 
 
-maps = googlemaps.Client(key='***REMOVED***')
+        :param file_path: str
+        :param csv_columns: list containing the header columns
+        :return:
+        """
+        csv_dataset = pd.read_csv(file_path, usecols=csv_columns)
+        return csv_dataset
 
-csv = pd.read_csv('normalizated_data/data.csv', usecols=[1, 3])
+    def get_address_from_coordinates(self, latitude, longitude):
+        """Converts a latitude, longitude address coordinate in a valid address
 
-def get_country():
-    pass
-def get_city():
-    pass
-def get_state():
-    pass
-def get_neigbour():
-    pass
-def get_street_number():
-    pass
-def get_street_name():
-    pass
-def get_postal_code():
-    pass
-# class Address:
-#     def __init__(self):
-#         self.street_number = 234
-#         self.street_name = 'oie'
+        :param latitude: float
+        :param longitude: float
+        :return: dict
+        """
+        try:
+            return self.maps.reverse_geocode(
+                (latitude, longitude),
+                result_type="street_address",
+                location_type="ROOFTOP",
+            )
+        except ApiError as e:
+            logger.critical(e.message)
+            os.sys.exit(1)
 
-# def __srt__(self):
-#     return
-
-
-def get_address(address_components):
-    address = {}
-
-    for component in address_components:
-        component_types = component.get('types', '')
-
-        if 'country' in component_types:
-            address.update({'country': component.get('long_name')})
-
-        if 'administrative_area_level_1' in component_types:
-            address.update({'state': component.get('short_name')})
-
-        if 'administrative_area_level_2' in component_types:
-            address.update({'city': component.get('long_name')})
-
-        if 'sublocality_level_1' in component_types:
-            address.update({'neighborhood': component.get('long_name')})
-
-        if 'street_number' in component_types:
-            address.update({'street_number': component.get('long_name')})
-
-        if 'route' in component_types:
-            address.update({'street_name': component.get('long_name')})
-
-        if 'postal_code' in component_types:
-            address.update({'postal_code': component.get('long_name')})
-
-    if address:
-        return address
+    def save_dataset_coordinates_to_database(self, dataset):
+        for number, coordinate in dataset.iterrows():  # pylint: disable=unused-variable
+            result = self.get_address_from_coordinates(
+                coordinate.values[0], coordinate.values[1]
+            )
+            if result:
+                address_components = result[0].get("address_components", "")
+                if address_components:
+                    complete_address = self.get_address_from_address_components(
+                        address_components
+                    )
+                    if complete_address:
+                        complete_address.update(
+                            {
+                                "latitute": coordinate.values[0],
+                                "longitute": coordinate.values[1],
+                            }
+                        )
+                        if self.is_address_valid(complete_address):
+                            logger.info(
+                                f"Address saved to database: {complete_address}"
+                            )
+            else:
+                logger.warning(
+                    f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
+                )
 
 
-def is_address_valid(address):
-    address_components = ['country', 'state', 'city', 'neighborhood', 'street_number', 'street_name', 'postal_code', 'latitute', 'longitute']
-    address_keys = address.keys()
+def main():
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="Geographical Coordinate to DataBase",
+        description="Converts and saves geographical coordinates from a CSV file to Database.",
+        add_help=True,
+    )
+    parser.add_argument(
+        "-p",
+        "--path-to-csv",
+        dest="csv_file_path",
+        help="Path to csv file containing geographical coordinates",
+    )
+    parser.add_argument(
+        "-v", "--verbose", help="Activates debug log level.", action="store_true"
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="Defines if logging should output on terminal.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-k", "--google-maps-key", dest="api_key", help="API key to use googlemaps"
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "-i",
+        "--csv-column-indexes",
+        dest="csv_column_indexes",
+        help="Which CSV columns contain latitude and longitute"
+        " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
+        " or  `--columns-to-read=1,3`",
+    )
+    group.add_argument(
+        "-n",
+        "--csv-column-names",
+        dest="csv_column_names",
+        help="Which CSV columns contain latitude and longitute"
+        " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
+        " or  `--columns-to-read=1,3`",
+    )
+
+    logger.info(">>> Starting the Coordinate Converter.")
+    args = parser.parse_args()
+
+    if args.output:
+        logger.debug("Showing logs on terminal.")
+        root_logger = logging.getLogger()
+        console_handler = logging.StreamHandler(os.sys.stdout)
+        root_logger.addHandler(console_handler)
+
+    if args.verbose:
+        logger.info("Setting log level to DEBUG")
+        logger.setLevel("DEBUG")
+
+    check_path = Path(args.csv_file_path)
+
+    logger.info("Checking CSV File.")
+    if not check_path.exists():
+        message = "Path to csv not found."
+        logger.critical(message)
+        os.sys.exit(1)
+
+    test_client = GoogleMapsClient(args.api_key)
+
+    if args.csv_column_names:
+        try:
+            logger.debug(f"Trying column names parsing {args.csv_column_names}")
+            columns = list(tuple(args.csv_column_names.split(",")))
+        except Exception:
+            message = f"Error parsing columns: {args.csv_column_names}"
+            logger.critical(message)
+            os.sys.exit(1)
+
+    if args.csv_column_indexes:
+        try:
+            logger.debug(f"Trying column indexes parsing {args.csv_column_indexes}")
+            columns = tuple(args.csv_column_indexes.split(","))
+            columns = list(map(int, columns))
+        except Exception:
+            message = f"Error parsing column indexes: {args.csv_column_indexes}"
+            logger.critical(message)
+            os.sys.exit(1)
+
+    logger.info("Checking API Key.")
+    try:
+        test_client.reverse_geocode((30.1084987, -51.3172284))  # Porto Alegre, RS
+    except ApiError as e:
+        logger.critical(e.message)
+        os.sys.exit(1)
+    else:
+        logger.debug(f"API Key OK {args.api_key}")
+
+    a = Converter(api_key=args.api_key)
+    dataset_from_csv = a.get_coordinates_from_csv_file(args.csv_file_path, columns)
+    a.save_dataset_coordinates_to_database(dataset_from_csv)
 
 
-    for key in address_keys:
-
-        if key not in address_components:
-            return False
-    return True
-    # if not address.get('country'):
-    #     return False
-    # if not address.get('state'):
-    #     return False
-    # if not address.get('city'):
-    #     return False
-    # if not address.get('neighborhood'):
-    #     return False
-    # if not address.get('street_number'):
-    #     return False
-    # if not address.get('street_name'):
-    #     return False
-    # if not address.get('postal_code'):
-    #     return False
-    # address_components = ['country', 'state', 'city', 'neighborhood', 'street_number', 'street_name', 'postal_code']
-    # return True
-
-
-count = -1
-for number, coordinate in csv.iterrows():
-    # print(number, coordinate.values[0], coordinate.values[1])
-    # for n, i in enumerate(coord):
-    result = maps.reverse_geocode((coordinate.values[0], coordinate.values[1]), result_type='street_address', location_type='ROOFTOP')
-    if result:
-
-        for o in result:
-            address_components = o.get("address_components", "")
-            if address_components:
-                complete_address = get_address(address_components)
-                if complete_address:
-                    complete_address.update({'latitute': coordinate.values[0], 'longitute': coordinate.values[1]})
-                    if is_address_valid(complete_address):
-                        count += 1
-                        print("Integrate data:")
-                        # print(json.dumps(complete_address, indent=4, ensure_ascii=False))
-                    else:
-                        print("NOT Integrate data:")
-                        print(json.dumps(complete_address, indent=4, ensure_ascii=False))
-    print(f"CSV [{number}] - Valid [{count}] HAS" if result else f"CSV [{number}] - Valid [{count}] EMPTY {result}")
-
-
-
-
-            # if o.get('formatted_address'):
-            #     count += 1
-            #     print(f"{number}-{count} - {o.get('formatted_address')}")
-
-            # if o.get("address_components"):
-            # for i in o.get("address_components"):
-            #     if 'street_number' in i.get("types", ""):
-            #         count = count + 1
-            #         ha = i.get("long_name")
-                    # print(f'{ko}-{count}  -  {i.get("long_name")}')
-                # else:
-                #     print(json.dumps(o, indent=4))
-    #     if ha:
-    #         print(f'{ki.values[0]}, {ki.values[1]}-ko[{ko}]-count[{count}]  -  {ha}')
-    #         pdb.set_trace()
-    #     else:
-    #         print(f'{ki.values[0]} - {ki.values[1]}-ko[{ko}]')
-    # else:
-    #     print(f"{ki.values[0]}, {ki.values[1]} - Empty result? {result}")
-
-        #             # pdb.set_trace()
-            # print(addr.get("short_name"))
-            # print(json.dumps(o, indent=4))
-            # if 'route' in addr.get("types"):
-            #     # pdb.set_trace()
-            #     print(addr.get("long_name"))
-            # # for k, v in addr.items():
-
-            #     print(k)
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    main()
+    # ***REMOVED***

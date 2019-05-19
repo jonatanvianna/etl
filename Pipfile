@@ -4,6 +4,9 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pylint = "*"
+flake8 = "*"
+flake8-import-order = "*"
 
 [packages]
 pyarrow = "*"
