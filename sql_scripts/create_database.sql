@@ -1,3 +1,5 @@
+-- On container build it creates the database if it doesn't exists.
+
 CREATE EXTENSION IF NOT EXISTS dblink;
 --
 DO

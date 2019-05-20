@@ -1,6 +1,9 @@
 Latitude: 30°02′28″S   -30.04108716
 Longitude: 51°13′56″W   -51.23222954
 Distance: 1.5753 km  Bearing: 242.95°
+Latitude: 30°02′28″S   -30.04108716
+Longitude: 51°13′56″W   -51.23222954
+Distance: 1.5753 km  Bearing: 242.95°
 Latitude: 30°03′59″S   -30.06668175
 Longitude: 51°11′10″W   -51.18600466
 Distance: 4.6886 km  Bearing: 139.468°
