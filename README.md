@@ -1,4 +1,23 @@
 
+### Data fluxogram 
+
+converte coordenadas de blocos de 3 linhas  para uma lista de listas
+converte cada lista para um dicionario filrando por regex
+se te algum dado faltando ignora a linha
+
+
+- Reads raw data from txt writes csv deduplicated complete coordinates
+- Reads coordinates from csv
+- Make a request to get address
+- If matches saves in database coordinates relating `coordinates` and `address` tables
+
+
+-----------
+# ***FUTURE***
+### get bearing and distance to convert to destination  
+
+-----------
+
 
 * ***TODO*** improve regex to match integer and decimal number
 
@@ -36,10 +55,13 @@ Codebase in Python 3.6
 jupyter notebook to execute project phases
 
 ## Extracting
+
 ## Transforming
 ## Loading
 
 
+{'latitude_coordinate': '30°02′59″S', 'latitude_degree': '-30.04982864', 'longitude_coordinate': '51°12′05″W', 'longitude_degree': '-51.20150245', 'distance_km': '2.2959', 'bearing_degrees': '137.352'}
+{'latitude_coordinate': '30°02′59″S', 'latitude_degree': '-30.04982864', 'longitude_coordinate': '51°12′05″W', 'longitude_degree': '-51.20150245', 'distance_km': '2.2959', 'bearing_degrees': '137.352'}
 
 
 use coordenates to get:
@@ -50,4 +72,7 @@ Writes to db
 
 
 The databases are 
+
+
+
 
