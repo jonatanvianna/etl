@@ -3,13 +3,15 @@
 
 import logging
 import os
+from decouple import config
 from pathlib import Path
 
 from googlemaps import Client as GoogleMapsClient
 from googlemaps.exceptions import ApiError
 
 import pandas as pd
-
+import dataset
+import pdb
 
 LOG_PATH = "/app/logs/"
 LOG_FILENAME = "transform.log"
@@ -127,10 +129,30 @@ class Converter:
             logger.critical(e.message)
             os.sys.exit(1)
 
-    def save_dataset_coordinates_to_database(self, dataset):
-        for number, coordinate in dataset.iterrows():  # pylint: disable=unused-variable
+
+
+
+
+    def save_dataset_coordinates_to_database(self, dataset_coordinates):
+
+        db_user = config('POSTGRES_USER')
+        db_name = config('POSTGRES_DB')
+        db_password = config('POSTGRES_PASSWORD')
+        db_host = config('POSTGRES_HOST')
+        string_connection = f'postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}'
+        db = dataset.connect(string_connection)
+        coordinate_table = db['coordinate_points']
+        addresses = db['addresses']
+
+        # try:
+
+        # except Exception as e:
+        #     logger.critical(e)
+        #     os.sys.exit(1)
+        pdb.set_trace()
+        for number, coordinate in dataset_coordinates.iterrows():  # pylint: disable=unused-variable
             result = self.get_address_from_coordinates(
-                coordinate.values[0], coordinate.values[1]
+                coordinate['latitude'], coordinate['longitude']
             )
             if result:
                 address_components = result[0].get("address_components", "")
@@ -149,6 +171,26 @@ class Converter:
                             logger.info(
                                 f"Address saved to database: {complete_address}"
                             )
+
+                            coordinate_table.insert({'latitude': coordinate['latitude'],
+                                                     'longitude': coordinate['longitude'],
+                                                     'distance_km': coordinate['distance_km'],
+                                                     'bearing_degrees': coordinate['bearing_degrees']})
+
+                            addresses.insert(
+                                {
+                                    'street_number':complete_address.get('street_number'),
+                                    'street_name':complete_address.get('street_name'),
+                                    'neighborhood':complete_address.get('neighborhood'),
+                                    'city':complete_address.get('city'),
+                                    'state':complete_address.get('state'),
+                                    'country':complete_address.get('country'),
+                                    'postal_code':complete_address.get('postal_code'),
+                                    'latitude':complete_address.get('latitude'),
+                                    'longitude':complete_address.get('longitude'),
+                                }
+                            )
+
             else:
                 logger.warning(
                     f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
@@ -168,6 +210,7 @@ def main():
         "--path-to-csv",
         dest="csv_file_path",
         help="Path to csv file containing geographical coordinates",
+        required=True
     )
     parser.add_argument(
         "-v", "--verbose", help="Activates debug log level.", action="store_true"
@@ -179,7 +222,7 @@ def main():
         action="store_true",
     )
     parser.add_argument(
-        "-k", "--google-maps-key", dest="api_key", help="API key to use googlemaps"
+        "-k", "--google-maps-key", dest="api_key", help="API key to use googlemaps", required=True
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -212,13 +255,13 @@ def main():
         logger.info("Setting log level to DEBUG")
         logger.setLevel("DEBUG")
 
-    check_path = Path(args.csv_file_path)
-
     logger.info("Checking CSV File.")
-    if not check_path.exists():
-        message = "Path to csv not found."
-        logger.critical(message)
-        os.sys.exit(1)
+    if args.csv_file_path:
+        check_path = Path(args.csv_file_path)
+        if not check_path.exists():
+            message = "Path to csv not found."
+            logger.critical(message)
+            os.sys.exit(1)
 
     test_client = GoogleMapsClient(args.api_key)
 
@@ -251,10 +294,11 @@ def main():
         logger.debug(f"API Key OK {args.api_key}")
 
     a = Converter(api_key=args.api_key)
-    dataset_from_csv = a.get_coordinates_from_csv_file(args.csv_file_path, columns)
+    dataset_from_csv = a.get_coordinates_from_csv_file(args.csv_file_path)
     a.save_dataset_coordinates_to_database(dataset_from_csv)
 
 
 if __name__ == "__main__":
     main()
     # AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA
+    # python transform_csv_to_database.py -k AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA -p normalized_data/data.csv
