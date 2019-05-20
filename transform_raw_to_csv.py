@@ -1,24 +1,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 import logging
 import os
 from pathlib import Path
@@ -78,10 +60,9 @@ def wrangle_points_to_list(files, line_range=3):
     :returns A list containing raw lines of coordinates
     """
     raw_points_list = []
-    pdb.set_trace()
     for read_file in files:
         line_list = []
-        with open('data/' + read_file, 'r') as file:
+        with open(read_file, 'r') as file:
             if file.readable():
                 count = line_range
                 for line in file:
@@ -95,12 +76,10 @@ def wrangle_points_to_list(files, line_range=3):
 
 
 def convert_data_coordinates(raw_points_list):
-    """Converts raw coordinates into a list of type converted data.
+    """Converts raw coordinates into a list of converted data.
 
-    latitude_coordinate - str()
-    latitude_degree - float()
-    longitude_coordinate - str()
-    longitude_degree - float()
+    latitude - float()
+    longitude - float()
     distance_km - float()
     bearing_degrees - float()
 
@@ -147,7 +126,7 @@ def convert_data_coordinates(raw_points_list):
             except ValueError as e:
                 print(e)
                 os.sys.exit(1)
-
+    pdb.set_trace()
     return converted_points_list
 
 
@@ -158,13 +137,11 @@ def remove_duplicates(converted_points_list):
     """
     seen = set()
     deduplicated_points = []
-    print(f'Before deduplication: {len(converted_points_list)}')
     for line in converted_points_list:
         line_tuple = tuple(line.items())
         if line_tuple not in seen:
             seen.add(line_tuple)
             deduplicated_points.append(line)
-    print(f'After deduplication: {len(deduplicated_points)}')
     return deduplicated_points
 
 
@@ -187,30 +164,15 @@ def write_points_to_csv(deduplicated_points_list, path='normalized_data/'):
                              'bearing_degrees': line.get('bearing_degrees')})
 
 
-# db_user = config('POSTGRES_USER')
-# db_name = config('POSTGRES_DB')
-# db_password = config('POSTGRES_PASSWORD')
-# db_host = config('POSTGRES_HOST')
-# string_connection = f'postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}'
-# db = dataset.connect(string_connection)
 
-
-# for i in deduplicated_points_list:
-#
-#     coordinate_table.insert({'latitude_coordinate': i.get('latitude_coordinate'),
-#                              'latitude_degree': i.get('latitude_degree'),
-#                              'longitude_coordinate': i.get('longitude_coordinate'),
-#                              'longitude_degree': i.get('longitude_degree'),
-#                              'distance_km': i.get('distance_km'),
-#                              'bearing_degrees': i.get('bearing_degrees')})
 
 
 def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="Geographical Coordinate to DataBase",
-        description="Converts and saves geographical coordinates from a CSV file to Database.",
+        prog="Raw Geographical Coordinates to CSV",
+        description="Converts and saves geographical coordinates from a Raw file to CSV.",
         add_help=True,
     )
     group = parser.add_mutually_exclusive_group()
@@ -218,13 +180,19 @@ def main():
         "-p",
         "--files-path",
         dest="files_path",
-        help="A Path containing files with geographical coordinates",
+        help="A Path containing files with geographical coordinates.",
     )
     group.add_argument(
         "-f",
         "--file",
         dest="file_coord",
-        help="File containing geographical coordinates"
+        help="File containing geographical coordinates."
+    )
+    parser.add_argument(
+        "-w",
+        "--csv-write-path",
+        dest="write_path",
+        help="A path to where to write the csv file output."
     )
     parser.add_argument(
         "-b",
@@ -268,27 +236,39 @@ def main():
             message = "Path not found."
             logger.critical(message)
             os.sys.exit(1)
+    if not args.coordinate_block:
+        args.coordinate_block = 1
 
     if args.files_path:
-        check_path(args.files_path)
-        data_files = get_data_files(args.files_path)
+        files_path = args.files_path
+        check_path(files_path)
+        data_files = []
+        for file in get_data_files(files_path):
+            data_files.append(f"{files_path}/{file}")
         raw_points_list = wrangle_points_to_list(data_files, args.coordinate_block)
 
     if args.file_coord:
         check_path(args.file_coord)
-        raw_points_list = wrangle_points_to_list(data_files, args.coordinate_block)
+        raw_points_list = wrangle_points_to_list([args.file_coord], args.coordinate_block)
 
-
-    # converted_points_list = convert_data_coordinates(raw_points_list)
-    # print(len(raw_points_list))
-    # deduplicated_points_list = remove_duplicates(converted_points_list)
-    # write_points_to_csv(deduplicated_points_list)
+    print(len(raw_points_list))
+    converted_points_list = convert_data_coordinates(raw_points_list)
+    print(len(converted_points_list))
+    deduplicated_points_list = remove_duplicates(converted_points_list)
+    print(len(deduplicated_points_list))
+    write_points_to_csv(deduplicated_points_list)
     # print(f'Databases: {db.tables}')
     # coordinate_table = db['coordinate_points']
+    from psycopg2 import OperationalError
+    # from sqlalchemy.exc import OperationalError
+
+
+
+
 
 
 if __name__ == "__main__":
     main()
 
-# python extract.py --files-path=data --file=data/data_points_20180101.txt --coordinate-block=3 --verbose --output
-# python extract.py -p=data -f=data/data_points_20180101.txt -b=3 -v -o
+# python transform_raw_to_csv.py --files-path=data --file=data/data_points_20180101.txt --coordinate-block=3 --verbose --output
+# python transform_raw_to_csv.py -p=data -f=data/data_points_20180101.txt -w=normalized_data -b=3 -v -o
