@@ -39,7 +39,7 @@ class Converter:
         :param address: json containing all address components
         :return: bool
         """
-
+        
         address_components = [
             "country",
             "state",
@@ -48,14 +48,15 @@ class Converter:
             "street_number",
             "street_name",
             "postal_code",
-            "latitute",
-            "longitute",
+            "latitude",
+            "longitude",
         ]
-        address_keys = address.keys()
-        for key in address_keys:
-            if key not in address_components:
-                return False
-        return True
+        address_keys = [*address.keys()]
+        address_keys.sort()
+        address_components.sort()
+        if address_keys == address_components:
+            return True
+        return False
 
     @staticmethod
     def get_address_from_address_components(address_components):
@@ -88,7 +89,7 @@ class Converter:
             if "route" in component_types:
                 address.update({"street_name": component.get("long_name")})
 
-            if "postal_code" in component_types:
+            if "postal_code" in component_types: #and component.get("long_name"):
                 address.update({"postal_code": component.get("long_name")})
 
         if address:
@@ -129,10 +130,6 @@ class Converter:
             logger.critical(e.message)
             os.sys.exit(1)
 
-
-
-
-
     def save_dataset_coordinates_to_database(self, dataset_coordinates):
 
         db_user = config('POSTGRES_USER')
@@ -149,7 +146,7 @@ class Converter:
         # except Exception as e:
         #     logger.critical(e)
         #     os.sys.exit(1)
-        pdb.set_trace()
+        
         for number, coordinate in dataset_coordinates.iterrows():  # pylint: disable=unused-variable
             result = self.get_address_from_coordinates(
                 coordinate['latitude'], coordinate['longitude']
@@ -163,15 +160,16 @@ class Converter:
                     if complete_address:
                         complete_address.update(
                             {
-                                "latitute": coordinate.values[0],
-                                "longitute": coordinate.values[1],
+                                "latitude": coordinate['latitude'],
+                                "longitude": coordinate['longitude'],
                             }
                         )
                         if self.is_address_valid(complete_address):
+
                             logger.info(
                                 f"Address saved to database: {complete_address}"
                             )
-
+                            
                             coordinate_table.insert({'latitude': coordinate['latitude'],
                                                      'longitude': coordinate['longitude'],
                                                      'distance_km': coordinate['distance_km'],
@@ -179,18 +177,17 @@ class Converter:
 
                             addresses.insert(
                                 {
-                                    'street_number':complete_address.get('street_number'),
-                                    'street_name':complete_address.get('street_name'),
-                                    'neighborhood':complete_address.get('neighborhood'),
-                                    'city':complete_address.get('city'),
-                                    'state':complete_address.get('state'),
-                                    'country':complete_address.get('country'),
-                                    'postal_code':complete_address.get('postal_code'),
-                                    'latitude':complete_address.get('latitude'),
-                                    'longitude':complete_address.get('longitude'),
+                                    'street_number': complete_address.get('street_number'),
+                                    'street_name': complete_address.get('street_name'),
+                                    'neighborhood': complete_address.get('neighborhood'),
+                                    'city': complete_address.get('city'),
+                                    'state': complete_address.get('state'),
+                                    'country': complete_address.get('country'),
+                                    'postal_code': complete_address.get('postal_code'),
+                                    'latitude': complete_address.get('latitude'),
+                                    'longitude': complete_address.get('longitude')
                                 }
                             )
-
             else:
                 logger.warning(
                     f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
@@ -229,7 +226,7 @@ def main():
         "-i",
         "--csv-column-indexes",
         dest="csv_column_indexes",
-        help="Which CSV columns contain latitude and longitute"
+        help="Which CSV columns contain latitude and longitude"
         " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
         " or  `--columns-to-read=1,3`",
     )
@@ -237,7 +234,7 @@ def main():
         "-n",
         "--csv-column-names",
         dest="csv_column_names",
-        help="Which CSV columns contain latitude and longitute"
+        help="Which CSV columns contain latitude and longitude"
         " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
         " or  `--columns-to-read=1,3`",
     )
@@ -301,4 +298,4 @@ def main():
 if __name__ == "__main__":
     main()
     # AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA
-    # python transform_csv_to_database.py -k AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA -p normalized_data/data.csv
+    # python transform_csv_to_database.py -k AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA -p normalized_data/data.csv -vo
