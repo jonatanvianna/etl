@@ -18,6 +18,7 @@ psycopg2-binary = "*"
 python-decouple = "*"
 unipath = "*"
 jupyter = "*"
+geopy = "*"
 
 [requires]
 python_version = "3.6"
