@@ -1,5 +1,5 @@
 
-### Data fluxogram 
+### Data Flow
 
 converte coordenadas de blocos de 3 linhas  para uma lista de listas
 converte cada lista para um dicionario filrando por regex
@@ -14,32 +14,32 @@ se te algum dado faltando ignora a linha
 
 -----------
 # ***FUTURE***
-### get bearing and distance to convert to destination  
+### get bearing and distance to convert to destination
 
 -----------
 
-
-* ***TODO*** improve regex to match integer and decimal number
 
 * ***TODO*** data["redirect_to"] = re.sub(, "'.." + __match_groups.pop(), data["redirect_to"])
 
 * ***TODO*** make a function to regex match
 
-* ***TODO*** remove duplicated line using set
-
 * ***TODO*** Elastic search?
 
 * ***TODO*** Postgres IS NEEEEEDEDD to create Indexes to do a fast search
 
-* ***TODO*** Define a Datawarehouse
+* ***TODO*** Define a Datawarehouse??
 
-* ***TODO*** Define a external volume for huge files of csv data
-
-* ***TODO*** string connection in an .ENV file
-
-* ***TODO*** Script for creating the database in docker-compose
+* ***TODO*** Define a external volume in DOCKER for huge files of csv data
 
 * ***TODO*** encontrar api para calcular o destino
+
+* ***DONE*** improve regex to match integer and decimal number
+
+* ***DONE*** remove duplicated line using set
+
+* ***DONE*** string connection in an .ENV file
+
+* ***DONE*** Script for creating the database in docker-compose
 
 
 #### Project Requirements
@@ -59,19 +59,14 @@ jupyter notebook to execute project phases
 ## Transforming
 ## Loading
 
-
-{'latitude_coordinate': '30°02′59″S', 'latitude_degree': '-30.04982864', 'longitude_coordinate': '51°12′05″W', 'longitude_degree': '-51.20150245', 'distance_km': '2.2959', 'bearing_degrees': '137.352'}
-{'latitude_coordinate': '30°02′59″S', 'latitude_degree': '-30.04982864', 'longitude_coordinate': '51°12′05″W', 'longitude_degree': '-51.20150245', 'distance_km': '2.2959', 'bearing_degrees': '137.352'}
-
-
 use coordenates to get:
-address 
+address
 
 Load:
 Writes to db
 
 
-The databases are 
+The databases are
 
 
 

@@ -3,15 +3,17 @@
 
 import logging
 import os
-from decouple import config
 from pathlib import Path
+
+import dataset
+
+from decouple import config
 
 from googlemaps import Client as GoogleMapsClient
 from googlemaps.exceptions import ApiError
 
 import pandas as pd
-import dataset
-import pdb
+
 
 LOG_PATH = "/app/logs/"
 LOG_FILENAME = "transform.log"
@@ -39,7 +41,7 @@ class Converter:
         :param address: json containing all address components
         :return: bool
         """
-        
+
         address_components = [
             "country",
             "state",
@@ -89,7 +91,7 @@ class Converter:
             if "route" in component_types:
                 address.update({"street_name": component.get("long_name")})
 
-            if "postal_code" in component_types: #and component.get("long_name"):
+            if "postal_code" in component_types:
                 address.update({"postal_code": component.get("long_name")})
 
         if address:
@@ -130,26 +132,31 @@ class Converter:
             logger.critical(e.message)
             os.sys.exit(1)
 
+    @staticmethod
+    def save_to_database(coordinate, addresses):
+
+        db_user = config("POSTGRES_USER")
+        db_name = config("POSTGRES_DB")
+        db_password = config("POSTGRES_PASSWORD")
+        db_host = config("POSTGRES_HOST")
+        string_connection = (
+            f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
+        )
+        db = dataset.connect(string_connection)
+        coordinate_table = db["coordinate_points"]
+        addresses_table = db["addresses"]
+        try:
+            coordinate_table.insert(coordinate)
+            addresses_table.insert(addresses)
+        except Exception as e:
+            logger.critical(e)
+            os.sys.exit(1)
+
     def save_dataset_coordinates_to_database(self, dataset_coordinates):
 
-        db_user = config('POSTGRES_USER')
-        db_name = config('POSTGRES_DB')
-        db_password = config('POSTGRES_PASSWORD')
-        db_host = config('POSTGRES_HOST')
-        string_connection = f'postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}'
-        db = dataset.connect(string_connection)
-        coordinate_table = db['coordinate_points']
-        addresses = db['addresses']
-
-        # try:
-
-        # except Exception as e:
-        #     logger.critical(e)
-        #     os.sys.exit(1)
-        
-        for number, coordinate in dataset_coordinates.iterrows():  # pylint: disable=unused-variable
+        for (number, coordinate) in dataset_coordinates.iterrows():
             result = self.get_address_from_coordinates(
-                coordinate['latitude'], coordinate['longitude']
+                coordinate["latitude"], coordinate["longitude"]
             )
             if result:
                 address_components = result[0].get("address_components", "")
@@ -160,34 +167,34 @@ class Converter:
                     if complete_address:
                         complete_address.update(
                             {
-                                "latitude": coordinate['latitude'],
-                                "longitude": coordinate['longitude'],
+                                "latitude": coordinate["latitude"],
+                                "longitude": coordinate["longitude"],
                             }
                         )
                         if self.is_address_valid(complete_address):
-
                             logger.info(
                                 f"Address saved to database: {complete_address}"
                             )
-                            
-                            coordinate_table.insert({'latitude': coordinate['latitude'],
-                                                     'longitude': coordinate['longitude'],
-                                                     'distance_km': coordinate['distance_km'],
-                                                     'bearing_degrees': coordinate['bearing_degrees']})
+                            coordinate = {
+                                "latitude": coordinate["latitude"],
+                                "longitude": coordinate["longitude"],
+                                "distance_km": coordinate["distance_km"],
+                                "bearing_degrees": coordinate["bearing_degrees"],
+                            }
 
-                            addresses.insert(
-                                {
-                                    'street_number': complete_address.get('street_number'),
-                                    'street_name': complete_address.get('street_name'),
-                                    'neighborhood': complete_address.get('neighborhood'),
-                                    'city': complete_address.get('city'),
-                                    'state': complete_address.get('state'),
-                                    'country': complete_address.get('country'),
-                                    'postal_code': complete_address.get('postal_code'),
-                                    'latitude': complete_address.get('latitude'),
-                                    'longitude': complete_address.get('longitude')
-                                }
-                            )
+                            addresses = {
+                                "street_number": complete_address.get("street_number"),
+                                "street_name": complete_address.get("street_name"),
+                                "neighborhood": complete_address.get("neighborhood"),
+                                "city": complete_address.get("city"),
+                                "state": complete_address.get("state"),
+                                "country": complete_address.get("country"),
+                                "postal_code": complete_address.get("postal_code"),
+                                "latitude": complete_address.get("latitude"),
+                                "longitude": complete_address.get("longitude"),
+                            }
+
+                            self.save_to_database(coordinate, addresses)
             else:
                 logger.warning(
                     f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
@@ -207,7 +214,7 @@ def main():
         "--path-to-csv",
         dest="csv_file_path",
         help="Path to csv file containing geographical coordinates",
-        required=True
+        required=True,
     )
     parser.add_argument(
         "-v", "--verbose", help="Activates debug log level.", action="store_true"
@@ -219,7 +226,11 @@ def main():
         action="store_true",
     )
     parser.add_argument(
-        "-k", "--google-maps-key", dest="api_key", help="API key to use googlemaps", required=True
+        "-k",
+        "--google-maps-key",
+        dest="api_key",
+        help="API key to use googlemaps",
+        required=True,
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(

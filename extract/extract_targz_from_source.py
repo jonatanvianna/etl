@@ -1,11 +1,12 @@
-# coding: utf-8
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
 
 import logging
 import tarfile
 from os import sys
 
 import requests
-from requests import ConnectTimeout, ConnectionError, InvalidSchema, MissingSchema
+from requests import exceptions as  requests_exceptions
 
 LOG_PATH = "/app/logs/"
 LOG_FILENAME = "extract.log"
@@ -22,13 +23,13 @@ def extract_from_source(url, destination, extract):
 
     try:
         response = requests.get(url, timeout=10)
-    except ConnectTimeout as exc:
+    except requests_exceptions.ConnectTimeout as exc:
         logger.critical(exc)
-    except ConnectionError as exc:
+    except requests_exceptions.ConnectionError as exc:
         logger.critical(exc)
-    except MissingSchema as exc:
+    except requests_exceptions.MissingSchema as exc:
         logger.critical(exc)
-    except InvalidSchema as exc:
+    except requests_exceptions.InvalidSchema as exc:
         logger.critical(exc)
     else:
         if response.status_code == 200:
