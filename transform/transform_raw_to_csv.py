@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 LOG_PATH = "/app/logs/"
-LOG_FILENAME = "extract.log"
+LOG_FILENAME = "transform.log"
 
 logging.basicConfig(
     filename=LOG_PATH + LOG_FILENAME,
@@ -24,6 +24,8 @@ CAPTURE_LONGITUDE = re.compile(rf'(\s*Longitude:)\s*{COORDINATES}{DECIMAL}')
 CAPTURE_LATITUDE = re.compile(rf'(\s*Latitude:\s*){COORDINATES}{DECIMAL}')
 CAPTURE_DISTANCE = re.compile(rf'(\s*Distance:\s*){DECIMAL}')
 CAPTURE_BEARING = re.compile(rf'(\s*Bearing:\s*){DECIMAL}')
+NORMALIZED_DATA_PATH = "/app/normalized_data"
+NORMALIZED_DATA_FILE = "data.csv"
 
 
 def get_data_files(path_directory):
@@ -33,7 +35,18 @@ def get_data_files(path_directory):
     """
     file_path = Path(path_directory)
     if file_path.exists():
-        return os.listdir(path_directory)
+        files = os.listdir(path_directory)
+        message = f"Files found {' '.join(f for f in files)}"
+        if __name__ != '__main__':
+            print(message)
+
+        return files
+    else:
+        message = f"Directory not found '{path_directory}'"
+        if __name__ != '__main__':
+            print(message)
+        logger.error(message)
+        os.sys.exit(1)
 
 
 def wrangle_points_to_list(files, line_range=3):
@@ -133,20 +146,31 @@ def remove_duplicates(converted_points_list):
     return deduplicated_points
 
 
-def write_points_to_csv(deduplicated_points_list, path='normalized_data/'):
+def write_points_to_csv(deduplicated_points_list, path_to_csv=None):
     """Saves CSV files from a normalized list of dict containing coordinates"""
+    if not path_to_csv:
+        path_to_csv = f"{NORMALIZED_DATA_PATH}/{NORMALIZED_DATA_FILE}"
+    try:
+        with open(path_to_csv, "w") as csv_file:
+            fieldnames = ['latitude', 'longitude', 'distance_km', 'bearing_degrees']
 
-    with open(f'{path}data.csv', "w") as csv_file:
-        fieldnames = ['latitude', 'longitude', 'distance_km', 'bearing_degrees']
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
 
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
+            for line in deduplicated_points_list:
+                writer.writerow({'latitude': line.get('latitude'),
+                                 'longitude': line.get('longitude'),
+                                 'distance_km': line.get('distance_km'),
+                                 'bearing_degrees': line.get('bearing_degrees')})
+    except FileNotFoundError as exc:
+        if __name__ != '__main__':
+            print(exc)
+        logger.critical(exc)
 
-        for line in deduplicated_points_list:
-            writer.writerow({'latitude': line.get('latitude'),
-                             'longitude': line.get('longitude'),
-                             'distance_km': line.get('distance_km'),
-                             'bearing_degrees': line.get('bearing_degrees')})
+    message = f"CSV `{NORMALIZED_DATA_FILE}` file saved at `{NORMALIZED_DATA_PATH}`"
+    if __name__ != '__main__':
+        print(message)
+    logger.info(message)
 
 
 def main():
@@ -245,5 +269,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python transform_raw_to_csv.py --files-path=data --file=data/data_points_20180101.txt --coordinate-block=3 --verbose --output
-# python transform_raw_to_csv.py -p=data_from_source -f=data/data_points_20180101.txt -w=normalized_data -b=3 -v -o
+# python transform/transform_raw_to_csv.py --files-path=data_from_source --csv-write-path=normalized_data --coordinate-block=3 --verbose --output

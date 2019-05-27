@@ -3,7 +3,9 @@
 
 import logging
 import tarfile
-from os import sys
+import os
+
+from pathlib import Path
 
 import requests
 from requests import exceptions as  requests_exceptions
@@ -20,7 +22,6 @@ logger.setLevel("INFO")
 
 
 def extract_from_source(url, destination, extract):
-
     try:
         response = requests.get(url, timeout=10)
     except requests_exceptions.ConnectTimeout as exc:
@@ -37,14 +38,28 @@ def extract_from_source(url, destination, extract):
                 file_name = response.url.rsplit("/", 1)[1]
                 logger.debug(f"File name extracted from response.url {file_name}")
                 open(f"{destination}/{file_name}", 'wb').write(response.content)
+                message = f"File downloaded from {url} to {destination}/{file_name}."
+                logger.debug(message)
+                if __name__ != "__main__":
+                    print(message)
                 if extract:
                     tar_file = tarfile.open(f"{destination}/{file_name}", "r:gz")
                     tar_file.extractall(path=destination)
-                    logger.debug(f"Files extracted from to {destination}/{file_name}.")
+                    message = f"Files extracted at {destination} directory."
+                    logger.debug(message)
+                    os.remove(f"{destination}/{file_name}")
+                    if __name__ != "__main__":
+                        print(message)
             except Exception as exc:
-                logger.critical(f"Can't save {url} at {destination}: {exc}")
+                message = f"Can't save {url} at {destination}: {exc}"
+                if __name__ != "__main__":
+                    print(message)
+                logger.critical(message)
         else:
-            logger.info(f"Couldn't get {url}, status_code={response.status_code}")
+            message = f"Couldn't get {url}, status_code={response.status_code}"
+            if __name__ != "__main__":
+                print(message)
+            logger.info(message)
 
 
 def main():
@@ -94,7 +109,7 @@ def main():
     if args.output:
         logger.debug("Showing logs on terminal.")
         root_logger = logging.getLogger()
-        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler = logging.StreamHandler(os.sys.stdout)
         root_logger.addHandler(console_handler)
 
     if args.verbose:
@@ -107,4 +122,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python extract_targz_from_source.py --url=https://s3.amazonaws.com/dev.etl.python/datasets/data_points.tar.gz --destination=data_from_source --extract --verbose --output
+# python extract/extract_targz_from_source.py --url=https://s3.amazonaws.com/dev.etl.python/datasets/data_points.tar.gz --destination=data_from_source --extract --verbose --output
