@@ -12,8 +12,8 @@ check_interval = config("POSTGRES_CHECK_INTERVAL", default=1, cast=int)
 interval_unit = "second" if check_interval == 1 else "seconds"
 
 config = {
-    "dbname": config('POSTGRES_DB', default='4all'),
-    "user": config("POSTGRES_USER", default="joe"),
+    "dbname": config('POSTGRES_DB', default='etl'),
+    "user": config("POSTGRES_USER", default="myuser"),
     "password": config("POSTGRES_PASSWORD", default="aaa123"),
     "host": config("DATABASE_URL", default="db")
 }

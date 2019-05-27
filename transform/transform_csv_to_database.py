@@ -1,17 +1,22 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
 import logging
 import os
-from decouple import config
 from pathlib import Path
+
+import dataset
+
+from decouple import config
+
+from geopy.distance import geodesic
 
 from googlemaps import Client as GoogleMapsClient
 from googlemaps.exceptions import ApiError
 
 import pandas as pd
-import dataset
-import pdb
+
+from sqlalchemy.exc import IntegrityError
 
 LOG_PATH = "/app/logs/"
 LOG_FILENAME = "transform.log"
@@ -48,14 +53,15 @@ class Converter:
             "street_number",
             "street_name",
             "postal_code",
-            "latitute",
-            "longitute",
+            "latitude",
+            "longitude",
         ]
-        address_keys = address.keys()
-        for key in address_keys:
-            if key not in address_components:
-                return False
-        return True
+        address_keys = [*address.keys()]
+        address_keys.sort()
+        address_components.sort()
+        if address_keys == address_components:
+            return True
+        return False
 
     @staticmethod
     def get_address_from_address_components(address_components):
@@ -129,30 +135,53 @@ class Converter:
             logger.critical(e.message)
             os.sys.exit(1)
 
+    @staticmethod
+    def save_to_database(coordinate, address):
 
+        db_user = config("POSTGRES_USER")
+        db_name = config("POSTGRES_DB")
+        db_password = config("POSTGRES_PASSWORD")
+        db_host = config("POSTGRES_HOST")
+        string_connection = (
+            f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
+        )
+        db = dataset.connect(string_connection)
+        coordinate_table = db["coordinate_points"]
+        addresses_table = db["addresses"]
 
+        try:
+            coordinate_table.insert(coordinate)
+            addresses_table.insert(address)
+            message = f"Address saved to database: {address}"
+            if __name__ != '__main__':
+                print(message)
+            logger.info(message)
+        except IntegrityError as exc:
+            message = str(exc.orig).replace("\n", " ")
+            if __name__ != '__main__':
+                print(message)
+            logger.critical(message)
+        except Exception as exc:
+            if __name__ != '__main__':
+                print(exc)
+            logger.critical(exc)
 
+    # def get_destination(self, coordinate):
+    #     # destination(point, bearing, distance=None):
+    #     # distance = VincentyDistance(km=)
+    #     # point = distance.destination(Point(coordinate["latitude"], coordinate["longitude"]), )
+    #     # result = self.get_address_from_coordinates(point.latitude, point.longitude)
+
+    #     import pdb; pdb.set_trace()
+    #     origin = Point(coordinate["latitude"], coordinate["longitude"])
+    #     geo = geodesic()
+    #     destination = geo.destination(origin, coordinate["bearing_degrees"], coordinate["distance_km"])
+    #     result = self.get_address_from_coordinates(destination.latitude, destination.longitude)
 
     def save_dataset_coordinates_to_database(self, dataset_coordinates):
-
-        db_user = config('POSTGRES_USER')
-        db_name = config('POSTGRES_DB')
-        db_password = config('POSTGRES_PASSWORD')
-        db_host = config('POSTGRES_HOST')
-        string_connection = f'postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}'
-        db = dataset.connect(string_connection)
-        coordinate_table = db['coordinate_points']
-        addresses = db['addresses']
-
-        # try:
-
-        # except Exception as e:
-        #     logger.critical(e)
-        #     os.sys.exit(1)
-        pdb.set_trace()
-        for number, coordinate in dataset_coordinates.iterrows():  # pylint: disable=unused-variable
+        for (number, coordinate) in dataset_coordinates.iterrows():
             result = self.get_address_from_coordinates(
-                coordinate['latitude'], coordinate['longitude']
+                coordinate["latitude"], coordinate["longitude"]
             )
             if result:
                 address_components = result[0].get("address_components", "")
@@ -163,38 +192,36 @@ class Converter:
                     if complete_address:
                         complete_address.update(
                             {
-                                "latitute": coordinate.values[0],
-                                "longitute": coordinate.values[1],
+                                "latitude": coordinate["latitude"],
+                                "longitude": coordinate["longitude"],
                             }
                         )
                         if self.is_address_valid(complete_address):
-                            logger.info(
-                                f"Address saved to database: {complete_address}"
-                            )
+                            coordinate = {
+                                "latitude": coordinate["latitude"],
+                                "longitude": coordinate["longitude"],
+                                "distance_km": coordinate["distance_km"],
+                                "bearing_degrees": coordinate["bearing_degrees"],
+                            }
 
-                            coordinate_table.insert({'latitude': coordinate['latitude'],
-                                                     'longitude': coordinate['longitude'],
-                                                     'distance_km': coordinate['distance_km'],
-                                                     'bearing_degrees': coordinate['bearing_degrees']})
-
-                            addresses.insert(
-                                {
-                                    'street_number':complete_address.get('street_number'),
-                                    'street_name':complete_address.get('street_name'),
-                                    'neighborhood':complete_address.get('neighborhood'),
-                                    'city':complete_address.get('city'),
-                                    'state':complete_address.get('state'),
-                                    'country':complete_address.get('country'),
-                                    'postal_code':complete_address.get('postal_code'),
-                                    'latitude':complete_address.get('latitude'),
-                                    'longitude':complete_address.get('longitude'),
-                                }
-                            )
-
+                            addresses = {
+                                "street_number": complete_address.get("street_number"),
+                                "street_name": complete_address.get("street_name"),
+                                "neighborhood": complete_address.get("neighborhood"),
+                                "city": complete_address.get("city"),
+                                "state": complete_address.get("state"),
+                                "country": complete_address.get("country"),
+                                "postal_code": complete_address.get("postal_code"),
+                                "latitude": complete_address.get("latitude"),
+                                "longitude": complete_address.get("longitude"),
+                            }
+                            # self.get_destination(coordinate)
+                            self.save_to_database(coordinate, addresses)
             else:
-                logger.warning(
-                    f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
-                )
+                message = f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
+                if __name__ != '__main__':
+                    print(message)
+                logger.warning(message)
 
 
 def main():
@@ -210,7 +237,7 @@ def main():
         "--path-to-csv",
         dest="csv_file_path",
         help="Path to csv file containing geographical coordinates",
-        required=True
+        required=True,
     )
     parser.add_argument(
         "-v", "--verbose", help="Activates debug log level.", action="store_true"
@@ -222,25 +249,29 @@ def main():
         action="store_true",
     )
     parser.add_argument(
-        "-k", "--google-maps-key", dest="api_key", help="API key to use googlemaps", required=True
+        "-k",
+        "--google-maps-key",
+        dest="api_key",
+        help="API key to use googlemaps",
+        required=True,
     )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "-i",
-        "--csv-column-indexes",
-        dest="csv_column_indexes",
-        help="Which CSV columns contain latitude and longitute"
-        " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
-        " or  `--columns-to-read=1,3`",
-    )
-    group.add_argument(
-        "-n",
-        "--csv-column-names",
-        dest="csv_column_names",
-        help="Which CSV columns contain latitude and longitute"
-        " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
-        " or  `--columns-to-read=1,3`",
-    )
+    # group = parser.add_mutually_exclusive_group()
+    # group.add_argument(
+    #     "-i",
+    #     "--csv-column-indexes",
+    #     dest="csv_column_indexes",
+    #     help="Which CSV columns contain latitude and longitude"
+    #     " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
+    #     " or  `--columns-to-read=1,3`",
+    # )
+    # group.add_argument(
+    #     "-n",
+    #     "--csv-column-names",
+    #     dest="csv_column_names",
+    #     help="Which CSV columns contain latitude and longitude"
+    #     " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
+    #     " or  `--columns-to-read=1,3`",
+    # )
 
     logger.info(">>> Starting the Coordinate Converter.")
     args = parser.parse_args()
@@ -265,24 +296,24 @@ def main():
 
     test_client = GoogleMapsClient(args.api_key)
 
-    if args.csv_column_names:
-        try:
-            logger.debug(f"Trying column names parsing {args.csv_column_names}")
-            columns = list(tuple(args.csv_column_names.split(",")))
-        except Exception:
-            message = f"Error parsing columns: {args.csv_column_names}"
-            logger.critical(message)
-            os.sys.exit(1)
-
-    if args.csv_column_indexes:
-        try:
-            logger.debug(f"Trying column indexes parsing {args.csv_column_indexes}")
-            columns = tuple(args.csv_column_indexes.split(","))
-            columns = list(map(int, columns))
-        except Exception:
-            message = f"Error parsing column indexes: {args.csv_column_indexes}"
-            logger.critical(message)
-            os.sys.exit(1)
+    # if args.csv_column_names:
+    #     try:
+    #         logger.debug(f"Trying column names parsing {args.csv_column_names}")
+    #         columns = list(tuple(args.csv_column_names.split(",")))
+    #     except Exception:
+    #         message = f"Error parsing columns: {args.csv_column_names}"
+    #         logger.critical(message)
+    #         os.sys.exit(1)
+    #
+    # if args.csv_column_indexes:
+    #     try:
+    #         logger.debug(f"Trying column indexes parsing {args.csv_column_indexes}")
+    #         columns = tuple(args.csv_column_indexes.split(","))
+    #         columns = list(map(int, columns))
+    #     except Exception:
+    #         message = f"Error parsing column indexes: {args.csv_column_indexes}"
+    #         logger.critical(message)
+    #         os.sys.exit(1)
 
     logger.info("Checking API Key.")
     try:
@@ -293,12 +324,12 @@ def main():
     else:
         logger.debug(f"API Key OK {args.api_key}")
 
-    a = Converter(api_key=args.api_key)
-    dataset_from_csv = a.get_coordinates_from_csv_file(args.csv_file_path)
-    a.save_dataset_coordinates_to_database(dataset_from_csv)
+    converter = Converter(api_key=args.api_key)
+    dataset_from_csv = converter.get_coordinates_from_csv_file(args.csv_file_path)
+    converter.save_dataset_coordinates_to_database(dataset_from_csv)
 
 
 if __name__ == "__main__":
     main()
     # ***REMOVED***
-    # python transform_csv_to_database.py -k ***REMOVED*** -p normalized_data/data.csv
+    # python transform/transform_csv_to_database.py --google-maps-key ***REMOVED*** --path-to-csv=normalized_data/data.csv --verbose --output
