@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 # -*- encoding: utf-8 -*-
 
 import logging
@@ -9,11 +9,14 @@ import dataset
 
 from decouple import config
 
+from geopy.distance import geodesic
+
 from googlemaps import Client as GoogleMapsClient
 from googlemaps.exceptions import ApiError
 
 import pandas as pd
 
+from sqlalchemy.exc import IntegrityError
 
 LOG_PATH = "/app/logs/"
 LOG_FILENAME = "transform.log"
@@ -133,7 +136,7 @@ class Converter:
             os.sys.exit(1)
 
     @staticmethod
-    def save_to_database(coordinate, addresses):
+    def save_to_database(coordinate, address):
 
         db_user = config("POSTGRES_USER")
         db_name = config("POSTGRES_DB")
@@ -145,15 +148,37 @@ class Converter:
         db = dataset.connect(string_connection)
         coordinate_table = db["coordinate_points"]
         addresses_table = db["addresses"]
+
         try:
             coordinate_table.insert(coordinate)
-            addresses_table.insert(addresses)
-        except Exception as e:
-            logger.critical(e)
-            os.sys.exit(1)
+            addresses_table.insert(address)
+            message = f"Address saved to database: {address}"
+            if __name__ != '__main__':
+                print(message)
+            logger.info(message)
+        except IntegrityError as exc:
+            message = str(exc.orig).replace("\n", " ")
+            if __name__ != '__main__':
+                print(message)
+            logger.critical(message)
+        except Exception as exc:
+            if __name__ != '__main__':
+                print(exc)
+            logger.critical(exc)
+
+    # def get_destination(self, coordinate):
+    #     # destination(point, bearing, distance=None):
+    #     # distance = VincentyDistance(km=)
+    #     # point = distance.destination(Point(coordinate["latitude"], coordinate["longitude"]), )
+    #     # result = self.get_address_from_coordinates(point.latitude, point.longitude)
+
+    #     import pdb; pdb.set_trace()
+    #     origin = Point(coordinate["latitude"], coordinate["longitude"])
+    #     geo = geodesic()
+    #     destination = geo.destination(origin, coordinate["bearing_degrees"], coordinate["distance_km"])
+    #     result = self.get_address_from_coordinates(destination.latitude, destination.longitude)
 
     def save_dataset_coordinates_to_database(self, dataset_coordinates):
-
         for (number, coordinate) in dataset_coordinates.iterrows():
             result = self.get_address_from_coordinates(
                 coordinate["latitude"], coordinate["longitude"]
@@ -172,9 +197,6 @@ class Converter:
                             }
                         )
                         if self.is_address_valid(complete_address):
-                            logger.info(
-                                f"Address saved to database: {complete_address}"
-                            )
                             coordinate = {
                                 "latitude": coordinate["latitude"],
                                 "longitude": coordinate["longitude"],
@@ -193,12 +215,13 @@ class Converter:
                                 "latitude": complete_address.get("latitude"),
                                 "longitude": complete_address.get("longitude"),
                             }
-
+                            # self.get_destination(coordinate)
                             self.save_to_database(coordinate, addresses)
             else:
-                logger.warning(
-                    f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
-                )
+                message = f"Address couldn't be saved to database. Data returned from reverse_geocode API: {result}"
+                if __name__ != '__main__':
+                    print(message)
+                logger.warning(message)
 
 
 def main():
@@ -232,23 +255,23 @@ def main():
         help="API key to use googlemaps",
         required=True,
     )
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "-i",
-        "--csv-column-indexes",
-        dest="csv_column_indexes",
-        help="Which CSV columns contain latitude and longitude"
-        " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
-        " or  `--columns-to-read=1,3`",
-    )
-    group.add_argument(
-        "-n",
-        "--csv-column-names",
-        dest="csv_column_names",
-        help="Which CSV columns contain latitude and longitude"
-        " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
-        " or  `--columns-to-read=1,3`",
-    )
+    # group = parser.add_mutually_exclusive_group()
+    # group.add_argument(
+    #     "-i",
+    #     "--csv-column-indexes",
+    #     dest="csv_column_indexes",
+    #     help="Which CSV columns contain latitude and longitude"
+    #     " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
+    #     " or  `--columns-to-read=1,3`",
+    # )
+    # group.add_argument(
+    #     "-n",
+    #     "--csv-column-names",
+    #     dest="csv_column_names",
+    #     help="Which CSV columns contain latitude and longitude"
+    #     " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
+    #     " or  `--columns-to-read=1,3`",
+    # )
 
     logger.info(">>> Starting the Coordinate Converter.")
     args = parser.parse_args()
@@ -273,24 +296,24 @@ def main():
 
     test_client = GoogleMapsClient(args.api_key)
 
-    if args.csv_column_names:
-        try:
-            logger.debug(f"Trying column names parsing {args.csv_column_names}")
-            columns = list(tuple(args.csv_column_names.split(",")))
-        except Exception:
-            message = f"Error parsing columns: {args.csv_column_names}"
-            logger.critical(message)
-            os.sys.exit(1)
-
-    if args.csv_column_indexes:
-        try:
-            logger.debug(f"Trying column indexes parsing {args.csv_column_indexes}")
-            columns = tuple(args.csv_column_indexes.split(","))
-            columns = list(map(int, columns))
-        except Exception:
-            message = f"Error parsing column indexes: {args.csv_column_indexes}"
-            logger.critical(message)
-            os.sys.exit(1)
+    # if args.csv_column_names:
+    #     try:
+    #         logger.debug(f"Trying column names parsing {args.csv_column_names}")
+    #         columns = list(tuple(args.csv_column_names.split(",")))
+    #     except Exception:
+    #         message = f"Error parsing columns: {args.csv_column_names}"
+    #         logger.critical(message)
+    #         os.sys.exit(1)
+    #
+    # if args.csv_column_indexes:
+    #     try:
+    #         logger.debug(f"Trying column indexes parsing {args.csv_column_indexes}")
+    #         columns = tuple(args.csv_column_indexes.split(","))
+    #         columns = list(map(int, columns))
+    #     except Exception:
+    #         message = f"Error parsing column indexes: {args.csv_column_indexes}"
+    #         logger.critical(message)
+    #         os.sys.exit(1)
 
     logger.info("Checking API Key.")
     try:
@@ -301,12 +324,12 @@ def main():
     else:
         logger.debug(f"API Key OK {args.api_key}")
 
-    a = Converter(api_key=args.api_key)
-    dataset_from_csv = a.get_coordinates_from_csv_file(args.csv_file_path)
-    a.save_dataset_coordinates_to_database(dataset_from_csv)
+    converter = Converter(api_key=args.api_key)
+    dataset_from_csv = converter.get_coordinates_from_csv_file(args.csv_file_path)
+    converter.save_dataset_coordinates_to_database(dataset_from_csv)
 
 
 if __name__ == "__main__":
     main()
     # AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA
-    # python transform_csv_to_database.py -k AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA -p normalized_data/data.csv -vo
+    # python transform/transform_csv_to_database.py --google-maps-key AIzaSyCZ1RwYvtM-fbjWp7ZQnMggAVJVS9LJMFA --path-to-csv=normalized_data/data.csv --verbose --output
