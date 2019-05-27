@@ -1,18 +1,14 @@
+#!/usr/bin/env python3
+# -*- encoding: utf-8 -*-
 
-
-
+import csv
 import logging
 import os
+import re
 from pathlib import Path
 
-from googlemaps import Client as GoogleMapsClient
-from googlemaps.exceptions import ApiError
-
-import pandas as pd
-
-
 LOG_PATH = "/app/logs/"
-LOG_FILENAME = "extract.log"
+LOG_FILENAME = "transform.log"
 
 logging.basicConfig(
     filename=LOG_PATH + LOG_FILENAME,
@@ -22,25 +18,14 @@ logger = logging.getLogger()
 logger.setLevel("INFO")
 
 
-
-import pyarrow.parquet as pr
-import pandas as pa
-import numpy as np
-import pdb
-import csv
-import dataset
-from decouple import config
-import os
-import re
-from  unipath import Path
-
-
 COORDINATES = r'(\d+.?\d+.?\d+.?[S|N|W|E])\s*'
 DECIMAL = r'(-?\d+\.?\d+)'
 CAPTURE_LONGITUDE = re.compile(rf'(\s*Longitude:)\s*{COORDINATES}{DECIMAL}')
 CAPTURE_LATITUDE = re.compile(rf'(\s*Latitude:\s*){COORDINATES}{DECIMAL}')
 CAPTURE_DISTANCE = re.compile(rf'(\s*Distance:\s*){DECIMAL}')
 CAPTURE_BEARING = re.compile(rf'(\s*Bearing:\s*){DECIMAL}')
+NORMALIZED_DATA_PATH = "/app/normalized_data"
+NORMALIZED_DATA_FILE = "data.csv"
 
 
 def get_data_files(path_directory):
@@ -48,7 +33,20 @@ def get_data_files(path_directory):
 
     :returns A list containing data files names
     """
-    return os.listdir(path_directory)
+    file_path = Path(path_directory)
+    if file_path.exists():
+        files = os.listdir(path_directory)
+        message = f"Files found {' '.join(f for f in files)}"
+        if __name__ != '__main__':
+            print(message)
+
+        return files
+    else:
+        message = f"Directory not found '{path_directory}'"
+        if __name__ != '__main__':
+            print(message)
+        logger.error(message)
+        os.sys.exit(1)
 
 
 def wrangle_points_to_list(files, line_range=3):
@@ -65,13 +63,17 @@ def wrangle_points_to_list(files, line_range=3):
         with open(read_file, 'r') as file:
             if file.readable():
                 count = line_range
-                for line in file:
-                    line_list.append(line.replace('\n', ''))
-                    count -= 1
-                    if not count:
-                        raw_points_list.append(line_list)
-                        line_list = []
-                        count = line_range
+                try:
+                    for line in file:
+                        line_list.append(line.replace('\n', ''))
+                        count -= 1
+                        if not count:
+                            raw_points_list.append(line_list)
+                            line_list = []
+                            count = line_range
+                except UnicodeDecodeError as exc:
+                    logger.error(f"Error reading file \"{file.name}\" file is a binary: {exc}")
+                    continue
     return raw_points_list
 
 
@@ -115,7 +117,7 @@ def convert_data_coordinates(raw_points_list):
 
         points = [latitude, longitude, distance_km, bearing_degrees]
 
-        if not '-' in points:
+        if '-' not in points:
             try:
                 converted_points_list.append({
                     'latitude': float(latitude),
@@ -126,7 +128,6 @@ def convert_data_coordinates(raw_points_list):
             except ValueError as e:
                 print(e)
                 os.sys.exit(1)
-    pdb.set_trace()
     return converted_points_list
 
 
@@ -145,26 +146,31 @@ def remove_duplicates(converted_points_list):
     return deduplicated_points
 
 
-def write_points_to_csv(deduplicated_points_list, path='normalized_data/'):
+def write_points_to_csv(deduplicated_points_list, path_to_csv=None):
     """Saves CSV files from a normalized list of dict containing coordinates"""
+    if not path_to_csv:
+        path_to_csv = f"{NORMALIZED_DATA_PATH}/{NORMALIZED_DATA_FILE}"
+    try:
+        with open(path_to_csv, "w") as csv_file:
+            fieldnames = ['latitude', 'longitude', 'distance_km', 'bearing_degrees']
 
-    with open(f'{path}data.csv', "w") as csv_file:
-        fieldnames = ['latitude',
-                     'longitude',
-                     'distance_km',
-                     'bearing_degrees']
+            writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+            writer.writeheader()
 
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-        writer.writeheader()
+            for line in deduplicated_points_list:
+                writer.writerow({'latitude': line.get('latitude'),
+                                 'longitude': line.get('longitude'),
+                                 'distance_km': line.get('distance_km'),
+                                 'bearing_degrees': line.get('bearing_degrees')})
+    except FileNotFoundError as exc:
+        if __name__ != '__main__':
+            print(exc)
+        logger.critical(exc)
 
-        for line in deduplicated_points_list:
-            writer.writerow({'latitude': line.get('latitude'),
-                             'longitude': line.get('longitude'),
-                             'distance_km': line.get('distance_km'),
-                             'bearing_degrees': line.get('bearing_degrees')})
-
-
-
+    message = f"CSV `{NORMALIZED_DATA_FILE}` file saved at `{NORMALIZED_DATA_PATH}`"
+    if __name__ != '__main__':
+        print(message)
+    logger.info(message)
 
 
 def main():
@@ -181,6 +187,7 @@ def main():
         "--files-path",
         dest="files_path",
         help="A Path containing files with geographical coordinates.",
+        default="."
     )
     group.add_argument(
         "-f",
@@ -245,30 +252,21 @@ def main():
         data_files = []
         for file in get_data_files(files_path):
             data_files.append(f"{files_path}/{file}")
-        raw_points_list = wrangle_points_to_list(data_files, args.coordinate_block)
+        if data_files:
+            raw_points_list = wrangle_points_to_list(data_files, args.coordinate_block)
+        else:
+            logger.critical(f"File path has no files: {args.file_path}")
 
     if args.file_coord:
         check_path(args.file_coord)
         raw_points_list = wrangle_points_to_list([args.file_coord], args.coordinate_block)
 
-    print(len(raw_points_list))
     converted_points_list = convert_data_coordinates(raw_points_list)
-    print(len(converted_points_list))
     deduplicated_points_list = remove_duplicates(converted_points_list)
-    print(len(deduplicated_points_list))
     write_points_to_csv(deduplicated_points_list)
-    # print(f'Databases: {db.tables}')
-    # coordinate_table = db['coordinate_points']
-    from psycopg2 import OperationalError
-    # from sqlalchemy.exc import OperationalError
-
-
-
-
 
 
 if __name__ == "__main__":
     main()
 
-# python transform_raw_to_csv.py --files-path=data --file=data/data_points_20180101.txt --coordinate-block=3 --verbose --output
-# python transform_raw_to_csv.py -p=data -f=data/data_points_20180101.txt -w=normalized_data -b=3 -v -o
+# python transform/transform_raw_to_csv.py --files-path=data_from_source --csv-write-path=normalized_data --coordinate-block=3 --verbose --output
