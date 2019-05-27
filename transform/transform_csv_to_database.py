@@ -29,6 +29,16 @@ logger = logging.getLogger()
 logger.setLevel("INFO")
 
 
+class DatabaseConnection:
+    __instance = None
+    @staticmethod
+    def get_instance():
+        if not DatabaseConnection.__instance:
+            DatabaseConnection()
+        return DatabaseConnection.__instance
+    def __inti__(self):
+        if DatabaseConnection
+
 class Converter:
     def __init__(self, api_key):
         self.api_key = api_key
