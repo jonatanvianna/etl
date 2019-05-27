@@ -9,7 +9,7 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_DB=4all
+      - POSTGRES_DB=etl
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
