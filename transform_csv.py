@@ -205,9 +205,9 @@ def main():
         "-b",
         "--coordinate-block",
         dest="coordinate_block",
-        help="Block coordinate range. The raw file may have the"
+        help="Block coordinate range. The raw file may have the "
              "coordinates divided in more than one line, so passing"
-             "the range it can parse the coordinates properly",
+             "the range it can parse the coordinates properly.",
         type=int
     )
     parser.add_argument(
@@ -268,9 +268,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# python transform/transform_raw_to_csv.py \
-#     --files-path=data_from_source \
-#     --csv-write-path=normalized_data \
-#     --coordinate-block=3 \
-#     --verbose --output

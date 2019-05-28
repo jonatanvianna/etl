@@ -305,9 +305,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # ***REMOVED***
-# python transform/transform_csv_to_database.py \
-#     --google-maps-key ***REMOVED*** \
-#     --path-to-csv=normalized_data/data.csv \
-#     --verbose --output
-# http://0.0.0.0:8888/notebooks/notebooks/display_data.ipynb

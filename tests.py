@@ -1,7 +1,7 @@
 
 import unittest
 
-from transform.transform_raw_to_csv import convert_data_coordinates
+from transform_csv import convert_data_coordinates
 
 
 class TestExtract(unittest.TestCase):
