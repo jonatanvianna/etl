@@ -29,21 +29,31 @@ logger = logging.getLogger()
 logger.setLevel("INFO")
 
 
-class DatabaseConnection:
-    __instance = None
-    @staticmethod
-    def get_instance():
-        if not DatabaseConnection.__instance:
-            DatabaseConnection()
-        return DatabaseConnection.__instance
-    def __inti__(self):
-        if DatabaseConnection
+class Database:
+
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(Database, cls).__new__(cls)
+        return cls.instance
+
+    def __init__(self):
+        db_user = config("POSTGRES_USER")
+        db_name = config("POSTGRES_DB")
+        db_password = config("POSTGRES_PASSWORD")
+        db_host = config("POSTGRES_HOST")
+        string_connection = (
+            f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
+        )
+        self.conn = dataset.connect(string_connection)
+
+
 
 class Converter:
     def __init__(self, api_key):
         self.api_key = api_key
         self.maps = GoogleMapsClient(key=api_key)
         logger.debug("Instantiating Converter")
+        self.database = Database()
 
     @staticmethod
     def is_address_valid(address):
@@ -145,19 +155,19 @@ class Converter:
             logger.critical(e.message)
             os.sys.exit(1)
 
-    @staticmethod
-    def save_to_database(coordinate, address):
+    def save_to_database(self, coordinate, address):
 
-        db_user = config("POSTGRES_USER")
-        db_name = config("POSTGRES_DB")
-        db_password = config("POSTGRES_PASSWORD")
-        db_host = config("POSTGRES_HOST")
-        string_connection = (
-            f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
-        )
-        db = dataset.connect(string_connection)
-        coordinate_table = db["coordinate_points"]
-        addresses_table = db["addresses"]
+        # db_user = config("POSTGRES_USER")
+        # db_name = config("POSTGRES_DB")
+        # db_password = config("POSTGRES_PASSWORD")
+        # db_host = config("POSTGRES_HOST")
+        # string_connection = (
+        #     f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
+        # )
+        # db = dataset.connect(string_connection)
+
+        coordinate_table = self.database.conn["coordinate_points"]
+        addresses_table = self.database.conn["addresses"]
 
         try:
             coordinate_table.insert(coordinate)
