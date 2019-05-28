@@ -30,7 +30,6 @@ logger.setLevel("INFO")
 
 
 class Database:
-
     def __new__(cls):
         if not hasattr(cls, 'instance'):
             cls.instance = super(Database, cls).__new__(cls)
@@ -47,11 +46,12 @@ class Database:
         self.conn = dataset.connect(string_connection)
 
 
-
 class Converter:
-    def __init__(self, api_key):
-        self.api_key = api_key
-        self.maps = GoogleMapsClient(key=api_key)
+    def __init__(self, api_key=None):
+        self._api_key = api_key
+        if not self._api_key:
+            self._api_key = config("GOOGLE_MAPS_API_KEY")
+        self.maps = GoogleMapsClient(key=self._api_key)
         logger.debug("Instantiating Converter")
         self.database = Database()
 
@@ -157,15 +157,6 @@ class Converter:
 
     def save_to_database(self, coordinate, address):
 
-        # db_user = config("POSTGRES_USER")
-        # db_name = config("POSTGRES_DB")
-        # db_password = config("POSTGRES_PASSWORD")
-        # db_host = config("POSTGRES_HOST")
-        # string_connection = (
-        #     f"postgresql://{db_user}:{db_password}@{db_host}:5432/{db_name}"
-        # )
-        # db = dataset.connect(string_connection)
-
         coordinate_table = self.database.conn["coordinate_points"]
         addresses_table = self.database.conn["addresses"]
 
@@ -192,7 +183,6 @@ class Converter:
     #     # point = distance.destination(Point(coordinate["latitude"], coordinate["longitude"]), )
     #     # result = self.get_address_from_coordinates(point.latitude, point.longitude)
 
-    #     import pdb; pdb.set_trace()
     #     origin = Point(coordinate["latitude"], coordinate["longitude"])
     #     geo = geodesic()
     #     destination = geo.destination(origin, coordinate["bearing_degrees"], coordinate["distance_km"])
@@ -275,23 +265,6 @@ def main():
         help="API key to use googlemaps",
         required=True,
     )
-    # group = parser.add_mutually_exclusive_group()
-    # group.add_argument(
-    #     "-i",
-    #     "--csv-column-indexes",
-    #     dest="csv_column_indexes",
-    #     help="Which CSV columns contain latitude and longitude"
-    #     " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
-    #     " or  `--columns-to-read=1,3`",
-    # )
-    # group.add_argument(
-    #     "-n",
-    #     "--csv-column-names",
-    #     dest="csv_column_names",
-    #     help="Which CSV columns contain latitude and longitude"
-    #     " e.g: `--columns-to-read=latitude_coordinate, longitude_coordinate`"
-    #     " or  `--columns-to-read=1,3`",
-    # )
 
     logger.info(">>> Starting the Coordinate Converter.")
     args = parser.parse_args()
@@ -316,25 +289,6 @@ def main():
 
     test_client = GoogleMapsClient(args.api_key)
 
-    # if args.csv_column_names:
-    #     try:
-    #         logger.debug(f"Trying column names parsing {args.csv_column_names}")
-    #         columns = list(tuple(args.csv_column_names.split(",")))
-    #     except Exception:
-    #         message = f"Error parsing columns: {args.csv_column_names}"
-    #         logger.critical(message)
-    #         os.sys.exit(1)
-    #
-    # if args.csv_column_indexes:
-    #     try:
-    #         logger.debug(f"Trying column indexes parsing {args.csv_column_indexes}")
-    #         columns = tuple(args.csv_column_indexes.split(","))
-    #         columns = list(map(int, columns))
-    #     except Exception:
-    #         message = f"Error parsing column indexes: {args.csv_column_indexes}"
-    #         logger.critical(message)
-    #         os.sys.exit(1)
-
     logger.info("Checking API Key.")
     try:
         test_client.reverse_geocode((30.1084987, -51.3172284))  # Porto Alegre, RS
@@ -352,4 +306,8 @@ def main():
 if __name__ == "__main__":
     main()
     # ***REMOVED***
-    # python transform/transform_csv_to_database.py --google-maps-key ***REMOVED*** --path-to-csv=normalized_data/data.csv --verbose --output
+# python transform/transform_csv_to_database.py \
+#     --google-maps-key ***REMOVED*** \
+#     --path-to-csv=normalized_data/data.csv \
+#     --verbose --output
+# http://0.0.0.0:8888/notebooks/notebooks/display_data.ipynb

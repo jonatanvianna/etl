@@ -122,4 +122,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-# python extract/extract_targz_from_source.py --url=https://s3.amazonaws.com/dev.etl.python/datasets/data_points.tar.gz --destination=data_from_source --extract --verbose --output
+# python extract/extract_targz_from_source.py \
+#     --url=https://s3.amazonaws.com/dev.etl.python/datasets/data_points.tar.gz \
+#     --destination=data_from_source \
+#     --extract --verbose --output

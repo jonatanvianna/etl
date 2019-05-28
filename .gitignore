@@ -108,3 +108,6 @@ celerybeat-schedule
 # editors
 .idea/
 .vscode/
+
+#jupyter checkpoints
+.ipynb_checkpoints
