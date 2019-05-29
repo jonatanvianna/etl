@@ -37,7 +37,7 @@ To add and API Key edit `.env` file and set on `GOOGLE_MAPS_API_KEY` var.
 To build and run the project, after docker and docker-compose being installed, open your terminal window and run:
 
 ```bash
-$ git clone git@github.com:jonatanvianna/etl.git
+$ git clone https://github.com/jonatanvianna/etl.git
 $ cd etl/
 $ docker-compose up --build
 ```
