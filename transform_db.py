@@ -9,8 +9,6 @@ import dataset
 
 from decouple import config
 
-from geopy.distance import geodesic
-
 from googlemaps import Client as GoogleMapsClient
 from googlemaps.exceptions import ApiError
 
@@ -176,17 +174,6 @@ class Converter:
             if __name__ != '__main__':
                 print(exc)
             logger.critical(exc)
-
-    # def get_destination(self, coordinate):
-    #     # destination(point, bearing, distance=None):
-    #     # distance = VincentyDistance(km=)
-    #     # point = distance.destination(Point(coordinate["latitude"], coordinate["longitude"]), )
-    #     # result = self.get_address_from_coordinates(point.latitude, point.longitude)
-
-    #     origin = Point(coordinate["latitude"], coordinate["longitude"])
-    #     geo = geodesic()
-    #     destination = geo.destination(origin, coordinate["bearing_degrees"], coordinate["distance_km"])
-    #     result = self.get_address_from_coordinates(destination.latitude, destination.longitude)
 
     def save_dataset_coordinates_to_database(self, dataset_coordinates):
         for (number, coordinate) in dataset_coordinates.iterrows():
