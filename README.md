@@ -142,7 +142,7 @@ In the loading phase you can visualize the data using this jupyper notebook bell
 
 http://0.0.0.0:8888/notebooks/notebooks/display_data.ipynb
 
-##### CLI Documentation
+##### § CLI Documentation
 
 All 3 cli's have a `--help` that have instructions on how to use.
 
@@ -207,26 +207,26 @@ optional arguments:
 
 #### § Project Architecture
 
-Database using Postgresql
-Codebase in Python 3.6
-Docker and Docker Compose
-Jupyter
+- Database using Postgresql
+- Codebase in Python 3.6
+- Docker and Docker Compose
+- Jupyter
 
 ##### § Main python modules usend in project
 
-pandas
-dataset
-jupyter
-argparse
-unittest
-re
-csv
-googlemaps
-requests
+- pandas
+- dataset
+- jupyter
+- argparse
+- unittest
+- re
+- csv
+- googlemaps
+- requests
 
 ##### § Extras
 
-Digital Ocean Instance ([student cupom by student github pack](https://education.github.com/pack)).
+- Digital Ocean Instance ([student cupom by student github pack](https://education.github.com/pack)).
 
 
 
@@ -272,7 +272,9 @@ def get_destination():
 ```
 
 In this case the return would be a Point() instance that has the `lat -30.06506131, long -51.18537092` values.
-![imagehere](https://link)
+
+**Result of destination calculus inputted on Google Maps**
+![lat-long](https://us-east-1.aziondcs.net/testedoc/maps.png)
 
 **Possibilities:**
 With origin and destination  information at disposal, any kind of question can be done, like for instance:
