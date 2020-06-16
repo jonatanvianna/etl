@@ -1,6 +1,6 @@
 ## Project Definition
 
-This is an `ETL` project designed to convert and store raw geographical points colected from a source into data that can be read from database and be used any type od application.
+This is an `ETL` project designed to convert and store raw geographical coordinates collected from a source into data that can be read from a database and used in any type of application.
 
 #### § Data Flow
 
